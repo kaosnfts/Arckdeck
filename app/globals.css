@@ -1,0 +1,483 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 10 10 14;
+  --foreground: 248 248 252;
+  --muted: 24 24 32;
+  --muted-foreground: 165 165 182;
+  --card: 14 14 20;
+  --card-foreground: 248 248 252;
+  --border: 36 36 50;
+  --primary: 85 255 187;
+  --primary-foreground: 6 9 12;
+  --ring: 115 255 203;
+}
+
+/* Light hub theme (applied only inside .theme-hublight wrapper) */
+.theme-hublight {
+  --background: 248 250 252;
+  --foreground: 15 23 42;
+  --muted: 241 245 249;
+  --muted-foreground: 71 85 105;
+  --card: 255 255 255;
+  --card-foreground: 15 23 42;
+  --border: 226 232 240;
+  /* Keep brand colors */
+  --primary: 85 255 187;
+  --primary-foreground: 6 9 12;
+  --ring: 115 255 203;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  /* Dark theme background */
+  background: linear-gradient(180deg, rgba(6,6,10,1), rgba(10,10,18,1));
+  color: rgb(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01" 1, "cv11" 1, "liga" 1, "calt" 1;
+}
+
+/* Background overlays removed for a cleaner dark theme */
+body::after {
+  content: "";
+  position: fixed;
+  inset: -2px;
+  pointer-events: none;
+  background:
+    radial-gradient(1400px 900px at 50% 18%, rgba(0,0,0,0.25), transparent 55%),
+    radial-gradient(1200px 900px at 50% 120%, rgba(0,0,0,0.55), transparent 60%);
+  opacity: 0.95;
+}
+
+* {
+  border-color: rgb(var(--border));
+}
+
+a { color: inherit; }
+
+::selection {
+  background: rgba(85,255,187,0.25);
+}
+
+.glass {
+  background: rgb(var(--card) / 0.62);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgb(var(--border) / 0.65);
+}
+
+
+/* --- Theme-aware helpers (work in dark + light) --- */
+.text-fg { color: rgb(var(--foreground)); }
+.text-muted { color: rgb(var(--muted-foreground)); }
+.text-subtle { color: rgb(var(--muted-foreground) / 0.75); }
+
+.bg-surface { background: rgb(var(--card) / 0.70); }
+.bg-surface-2 { background: rgb(var(--muted) / 0.55); }
+
+.border-subtle { border-color: rgb(var(--border) / 0.65); }
+.shadow-soft { box-shadow: 0 18px 70px rgba(0,0,0,0.28); }
+.shadow-soft-light { box-shadow: 0 18px 70px rgba(15,23,42,0.10); }
+.theme-hublight .shadow-soft { box-shadow: 0 18px 70px rgba(15,23,42,0.10); }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Horizontal swipe/drag rows (e.g. top menu on mobile) */
+.drag-scroll-x {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.drag-scroll-x:active {
+  cursor: grabbing;
+}
+
+.nav-premium {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-premium:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(115,255,203,0.45), 0 0 0 6px rgba(0,0,0,0.35);
+}
+
+.nav-premium::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(120deg, rgba(85,255,187,0.00), rgba(85,255,187,0.18), rgba(120,180,255,0.14), rgba(255,150,90,0.10), rgba(85,255,187,0.00));
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.nav-premium::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  left: -70%;
+  width: 70%;
+  height: 160%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+}
+
+.nav-premium:hover::before {
+  opacity: 1;
+}
+
+.nav-premium:hover::after {
+  opacity: 1;
+  animation: shine 900ms ease-out;
+}
+
+.nav-premium:active::before {
+  opacity: 1;
+}
+
+.nav-premium > * {
+  position: relative;
+  z-index: 1;
+}
+
+.btn-premium {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-premium:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.btn-premium::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(120deg, rgba(85,255,187,0.0), rgba(85,255,187,0.22), rgba(120,180,255,0.18), rgba(85,255,187,0.0));
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.btn-premium::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  left: -60%;
+  width: 65%;
+  height: 160%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+}
+
+.btn-premium:hover::before {
+  opacity: 1;
+}
+
+.btn-premium:hover::after {
+  opacity: 1;
+  animation: shine 850ms ease-out;
+}
+
+.btn-premium > * {
+  position: relative;
+  z-index: 1;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+  background-size: 700px 100%;
+  animation: shimmer 1.25s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -700px 0; }
+  100% { background-position: 700px 0; }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.97); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(10px); filter: blur(2px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes fade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes shine {
+  0% { transform: translateX(0) skewX(-18deg); }
+  100% { transform: translateX(220%) skewX(-18deg); }
+}
+
+@keyframes confetti {
+  0% { opacity: 0; transform: translate(-50%, -10px) rotate(0deg); }
+  10% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--drift, 0px)), 260px) rotate(720deg); }
+}
+
+.float {
+  animation: float 2.6s ease-in-out infinite;
+}
+
+.modal-pop {
+  animation: pop 180ms ease-out;
+}
+
+.confetti {
+  position: absolute;
+  top: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(85,255,187,0.95), rgba(120,180,255,0.95));
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.10);
+  animation-name: confetti;
+  animation-timing-function: cubic-bezier(0.12, 0.74, 0.22, 1);
+  animation-fill-mode: both;
+}
+
+
+
+@keyframes brandShift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.brand-title {
+  font-family: var(--font-display), var(--font-sans), system-ui;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  background: linear-gradient(90deg, rgba(85,255,187,1), rgba(120,180,255,1), rgba(255,150,90,0.98));
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 18px 70px rgba(0,0,0,0.55);
+  animation: brandShift 3.6s linear infinite;
+  position: relative;
+}
+
+.brand-title::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.18), transparent 55%);
+  filter: blur(18px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+
+.page-fade {
+  animation: fade 700ms ease-out;
+}
+
+
+@keyframes lootOpen {
+  0% { transform: translateY(6px) rotateX(0deg); }
+  55% { transform: translateY(-10px) rotateX(28deg); }
+  100% { transform: translateY(-6px) rotateX(52deg); }
+}
+
+@keyframes lootGlow {
+  0% { opacity: 0; transform: scale(0.8); filter: blur(10px); }
+  40% { opacity: 1; transform: scale(1.0); filter: blur(18px); }
+  100% { opacity: 0.35; transform: scale(1.15); filter: blur(24px); }
+}
+
+@keyframes lootFadeUp {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0px); }
+}
+
+
+
+/* --- Lootbox (Faucet) --- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 160ms ease-out both;
+}
+
+@keyframes lootboxFloat {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes lootboxShake {
+  0% { transform: translateY(0px) rotate(0deg); }
+  20% { transform: translateY(-1px) rotate(-1.0deg); }
+  40% { transform: translateY(0px) rotate(1.0deg); }
+  60% { transform: translateY(-1px) rotate(-0.8deg); }
+  80% { transform: translateY(0px) rotate(0.8deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes lootboxGlow {
+  0% { opacity: 0.35; transform: scale(0.98); }
+  50% { opacity: 0.7; transform: scale(1.02); }
+  100% { opacity: 0.35; transform: scale(0.98); }
+}
+
+@keyframes rewardPop {
+  0% { opacity: 0; transform: translateY(10px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0px) scale(1); }
+}
+
+.lootbox-shell {
+  position: relative;
+  width: 260px;
+  height: 210px;
+  margin: 0 auto;
+  animation: lootboxFloat 2.8s ease-in-out infinite;
+}
+
+.lootbox-shell.lootbox-shake {
+  animation: lootboxShake 680ms ease-in-out infinite;
+}
+
+.lootbox-lid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44%;
+  border-radius: 28px 28px 18px 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)),
+    radial-gradient(circle at 30% 25%, rgba(85,255,187,0.22), transparent 55%),
+    radial-gradient(circle at 70% 25%, rgba(120,180,255,0.18), transparent 55%);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+  transform-origin: 50% 100%;
+  transition: transform 620ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+
+.lootbox-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 64%;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.18)),
+    radial-gradient(circle at 35% 30%, rgba(255,150,90,0.10), transparent 55%),
+    radial-gradient(circle at 70% 35%, rgba(85,255,187,0.14), transparent 60%);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 18px 45px rgba(0,0,0,0.45);
+}
+
+.lootbox-glow {
+  position: absolute;
+  inset: -22px;
+  border-radius: 40px;
+  background: radial-gradient(circle at 50% 45%, rgba(85,255,187,0.24), transparent 55%);
+  filter: blur(18px);
+  opacity: 0.35;
+  animation: lootboxGlow 2.3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.lootbox-open .lootbox-lid {
+  transform: translateY(-20px) rotateX(72deg);
+}
+
+.lootbox-open .lootbox-glow {
+  opacity: 0.8;
+}
+
+.lootbox-reward {
+  animation: rewardPop 220ms ease-out both;
+}
+
+
+/* --- Lootbox PNG animation (public/box/*.png) --- */
+@keyframes lootboxPulse {
+  0% { transform: translateY(0px) scale(1); filter: drop-shadow(0 18px 55px rgba(0,0,0,0.45)); }
+  50% { transform: translateY(-7px) scale(1.01); filter: drop-shadow(0 24px 70px rgba(0,0,0,0.50)); }
+  100% { transform: translateY(0px) scale(1); filter: drop-shadow(0 18px 55px rgba(0,0,0,0.45)); }
+}
+
+@keyframes lootboxShakePng {
+  0% { transform: translateY(0px) rotate(0deg); }
+  20% { transform: translateY(-1px) rotate(-1deg); }
+  40% { transform: translateY(0px) rotate(1deg); }
+  60% { transform: translateY(-1px) rotate(-0.7deg); }
+  80% { transform: translateY(0px) rotate(0.7deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes lootboxRays {
+  0% { opacity: 0; transform: scale(0.95) rotate(-8deg); filter: blur(10px); }
+  35% { opacity: 1; transform: scale(1.05) rotate(6deg); filter: blur(2px); }
+  100% { opacity: 0.35; transform: scale(1.12) rotate(18deg); filter: blur(0px); }
+}
+
+.lootbox-png-shell { position: relative; width: 320px; max-width: 100%; margin: 0 auto; }
+.lootbox-png-img { width: 100%; height: auto; user-select: none; -webkit-user-drag: none; display: block; animation: lootboxPulse 2.7s ease-in-out infinite; }
+.lootbox-png-opening .lootbox-png-img { animation: lootboxShakePng 680ms ease-in-out infinite; }
+
+.lootbox-png-fx {
+  pointer-events: none;
+  position: absolute;
+  inset: -22px;
+  border-radius: 48px;
+  background: radial-gradient(circle at 50% 35%, rgba(85,255,187,0.35), transparent 55%),
+              radial-gradient(circle at 50% 70%, rgba(120,180,255,0.18), transparent 62%);
+  filter: blur(16px);
+  opacity: 0.35;
+  transition: opacity 280ms ease;
+}
+
+.lootbox-png-opening .lootbox-png-fx { opacity: 0.85; }
+.lootbox-png-revealed .lootbox-png-fx { opacity: 0.95; }
+
+.lootbox-png-rays {
+  pointer-events: none;
+  position: absolute;
+  inset: -60px;
+  opacity: 0;
+  background: conic-gradient(from 210deg,
+    rgba(85,255,187,0.0),
+    rgba(85,255,187,0.30),
+    rgba(120,180,255,0.26),
+    rgba(255,150,90,0.20),
+    rgba(85,255,187,0.0));
+  mask-image: radial-gradient(circle at 50% 50%, black 30%, transparent 70%);
+  filter: blur(6px);
+}
+
+.lootbox-png-revealed .lootbox-png-rays { opacity: 1; animation: lootboxRays 1500ms ease-out both; }
