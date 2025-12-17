@@ -43,6 +43,19 @@ const FAUCET_CLAIMED_EVENT_ABI = [
   },
 ] as const;
 
+const ERC20_TRANSFER_EVENT_ABI = [
+  {
+    type: "event",
+    name: "Transfer",
+    inputs: [
+      { indexed: true, name: "from", type: "address" },
+      { indexed: true, name: "to", type: "address" },
+      { indexed: false, name: "value", type: "uint256" },
+    ],
+  },
+] as const;
+
+
 function nowSeconds() {
   return Math.floor(Date.now() / 1000);
 }
@@ -71,7 +84,7 @@ function decodeReward(reward: bigint, preferredDecimals?: number): number {
   const isStep10 = (x: number) => Math.abs(x / 10 - Math.round(x / 10)) < 1e-9;
   const plausible = vals.find(({ v }) => v >= 10 && v <= 200 && isStep10(v));
 
-  return (plausible ?? vals[0] ?? { v: 0 }).v;
+  return (plausible ?? { v: 0 }).v;
 }
 
 async function readUsdcBalanceRaw(
@@ -299,6 +312,40 @@ export function useFaucet(pollMs = 12000) {
 
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
+
+// Detect reward via ERC-20 Transfer logs (most reliable when faucet pays USDC token)
+let rewardFromTransfer: number | undefined;
+try {
+  if (env.USDC_ADDRESS) {
+    let sum = 0n;
+    for (const log of receipt.logs) {
+      if (!log?.topics?.length) continue;
+      if ((log.address ?? "").toLowerCase() !== (env.USDC_ADDRESS as string).toLowerCase()) continue;
+
+      try {
+        const decoded = decodeEventLog({
+          abi: ERC20_TRANSFER_EVENT_ABI,
+          data: log.data,
+          topics: log.topics,
+        } as any) as any;
+
+        if (decoded?.eventName !== "Transfer") continue;
+        const to = decoded?.args?.to as `0x${string}` | undefined;
+        const value = decoded?.args?.value as bigint | undefined;
+
+        if (to && getAddress(to) === checksum && typeof value === "bigint" && value > 0n) {
+          sum += value;
+        }
+      } catch {}
+    }
+
+    if (sum > 0n) {
+      const dec = before?.decimals ?? 6;
+      rewardFromTransfer = Number(formatUnits(sum, dec));
+    }
+  }
+} catch {}
+
         // Decode Claimed(user,reward,nextTime) if available (preferred).
         let rewardFromEvent: number | undefined;
         try {
@@ -340,7 +387,10 @@ export function useFaucet(pollMs = 12000) {
         let rewardUsdc: number | undefined;
         let userUsdcAfter: number | undefined;
 
-        if (rewardFromEvent && rewardFromEvent > 0) {
+        if (rewardFromTransfer && rewardFromTransfer > 0) {
+          rewardUsdc = rewardFromTransfer;
+        } else if (rewardFromEvent && rewardFromEvent >= 1) {
+          // Only accept event reward when it looks like a real amount (prevents tiny-decimal -> 0 UI)
           rewardUsdc = rewardFromEvent;
         }
 

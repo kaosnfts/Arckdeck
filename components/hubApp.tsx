@@ -269,10 +269,7 @@ export function HubApp() {
   );
 
   const isLight = theme === "light";
-  const toggleTheme = React.useCallback(() => {
-  setTheme(theme === "light" ? "dark" : "light");
-}, [theme, setTheme]);
-
+  const toggleTheme = React.useCallback(() => setTheme((t) => (t === "light" ? "dark" : "light")), [setTheme]);
 
   return (
     <DailyProvider>
