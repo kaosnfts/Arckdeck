@@ -5,6 +5,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
+import type { CreateConnectorFn } from "wagmi";
 import { injected, walletConnect } from "wagmi/connectors";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { arcTestnet } from "@/lib/arcChain";
@@ -12,8 +13,9 @@ import { env } from "@/lib/env";
 
 const queryClient = new QueryClient();
 
-const connectors = (() => {
-  const list = [injected({ shimDisconnect: true })];
+const connectors: CreateConnectorFn[] = (() => {
+  const list: CreateConnectorFn[] = [injected({ shimDisconnect: true })];
+
   if (env.WALLETCONNECT_PROJECT_ID) {
     list.push(
       walletConnect({
@@ -28,8 +30,10 @@ const connectors = (() => {
       })
     );
   }
+
   return list;
 })();
+
 
 export const wagmiConfig = createConfig({
   chains: [arcTestnet],
