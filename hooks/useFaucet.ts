@@ -42,13 +42,21 @@ const FAUCET_CLAIMED_EVENT_ABI = [
   },
 ] as const;
 
-
 function nowSeconds() {
   return Math.floor(Date.now() / 1000);
 }
 
 function lsKey(addr: string) {
   return `arcdeck:faucet:lastClaim:${addr.toLowerCase()}`;
+}
+
+// ✅ Fix TypeScript: viem/wagmi can infer `unknown` for dynamic readContract.
+// Normalize anything into bigint safely.
+function toBigInt(raw: unknown): bigint {
+  if (typeof raw === "bigint") return raw;
+  if (typeof raw === "number") return BigInt(Math.trunc(raw));
+  if (typeof raw === "string") return BigInt(raw);
+  return BigInt((raw as any) ?? 0);
 }
 
 async function readUsdcBalanceRaw(
@@ -66,27 +74,29 @@ async function readUsdcBalanceRaw(
       args: [owner],
     }),
   ]);
+
   const dec = Number(decimals) || 6;
   const raw = bal as bigint;
   return { raw, decimals: dec, n: Number(formatUnits(raw, dec)) };
 }
-
-
 
 async function readNativeBalanceRaw(
   publicClient: any,
   owner: `0x${string}`
 ): Promise<{ raw: bigint; decimals: number; n: number }> {
   const raw = (await publicClient.getBalance({ address: owner })) as bigint;
+
   // Arc uses USDC as native gas token; decimals may be 6 or 18 depending on network config.
   // Heuristic: choose 6 when the 6-decimal interpretation looks like a realistic user balance delta.
   const rawAbs = raw < 0n ? -raw : raw;
   const v18 = Number(formatUnits(rawAbs, 18));
   const v6 = Number(formatUnits(rawAbs, 6));
   const decimals = v6 >= 1 && v6 <= 1_000_000 && v18 < 1 ? 6 : 18;
+
   const n = Number(formatUnits(raw, decimals));
   return { raw, decimals, n };
 }
+
 async function readUsdcContractBalance(publicClient: any, owner: `0x${string}`): Promise<number | undefined> {
   try {
     const v = await readUsdcBalanceRaw(publicClient, owner);
@@ -164,12 +174,14 @@ export function useFaucet(pollMs = 12000) {
 
           for (const fn of LAST_CLAIM_READ_CANDIDATES) {
             try {
-              const v: bigint = await publicClient.readContract({
+              const raw = await publicClient.readContract({
                 address: env.FAUCET_CONTRACT,
                 abi: makeReadAbi(fn),
                 functionName: fn,
                 args: [checksum],
               } as any);
+
+              const v = toBigInt(raw);
               const ts = Number(v);
               if (Number.isFinite(ts) && ts > 0) {
                 lastClaimTs = ts;
@@ -194,12 +206,14 @@ export function useFaucet(pollMs = 12000) {
           const checksum = getAddress(address) as `0x${string}`;
           for (const fn of NEXT_CLAIM_READ_CANDIDATES) {
             try {
-              const v: bigint = await publicClient.readContract({
+              const raw = await publicClient.readContract({
                 address: env.FAUCET_CONTRACT,
                 abi: makeReadAbi(fn),
                 functionName: fn,
                 args: [checksum],
               } as any);
+
+              const v = toBigInt(raw);
               const ts = Number(v);
               if (Number.isFinite(ts) && ts > 0) {
                 nextClaimTsOnchain = ts;
@@ -211,7 +225,8 @@ export function useFaucet(pollMs = 12000) {
           }
         }
 
-        const nextClaimTs = nextClaimTsOnchain ?? (lastClaimTs ? lastClaimTs + CLAIM_COOLDOWN_SECONDS : undefined);
+        const nextClaimTs =
+          nextClaimTsOnchain ?? (lastClaimTs ? lastClaimTs + CLAIM_COOLDOWN_SECONDS : undefined);
         const rem = nextClaimTs ? Math.max(0, nextClaimTs - nowSeconds()) : 0;
 
         if (cancelled) return;
@@ -275,6 +290,7 @@ export function useFaucet(pollMs = 12000) {
 
         // Wait receipt so we can calculate reward reliably
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
         // Decode Claimed(user,reward,nextTime) if available (preferred over balance deltas).
         let rewardFromEvent: number | undefined;
         try {
@@ -304,7 +320,6 @@ export function useFaucet(pollMs = 12000) {
         } catch {
           // ignore
         }
-
 
         // Optimistic local cooldown
         window.localStorage.setItem(lsKey(checksum), String(nowSeconds()));
@@ -338,7 +353,7 @@ export function useFaucet(pollMs = 12000) {
           if (delta > 0 && rewardUsdc === undefined) rewardUsdc = delta;
         }
 
-setState((p) => ({
+        setState((p) => ({
           ...p,
           claiming: false,
           lastTxHash: hash,
