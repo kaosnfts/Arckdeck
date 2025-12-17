@@ -4,7 +4,6 @@ import { env } from "@/lib/env";
 export const arcTestnet: Chain = {
   id: env.ARC_CHAIN_ID,
   name: env.ARC_CHAIN_NAME,
-  network: "arc-testnet",
   nativeCurrency: {
     name: "USD Coin",
     symbol: "USDC",
