@@ -29,6 +29,7 @@ type FaucetState = {
 const CLAIM_COOLDOWN_SECONDS = 24 * 60 * 60;
 
 const NEXT_CLAIM_READ_CANDIDATES = ["nextClaimTime", "nextClaimTimestamp", "nextClaim"] as const;
+const LAST_CLAIM_READ_CANDIDATES = ["lastClaim", "lastClaimTime", "lastClaimed", "lastRequest", "last"] as const;
 
 const FAUCET_CLAIMED_EVENT_ABI = [
   {
@@ -50,13 +51,27 @@ function lsKey(addr: string) {
   return `arcdeck:faucet:lastClaim:${addr.toLowerCase()}`;
 }
 
-// ✅ Fix TypeScript: viem/wagmi can infer `unknown` for dynamic readContract.
-// Normalize anything into bigint safely.
+// viem can infer `unknown` for dynamic ABI + functionName. Normalize safely.
 function toBigInt(raw: unknown): bigint {
   if (typeof raw === "bigint") return raw;
   if (typeof raw === "number") return BigInt(Math.trunc(raw));
   if (typeof raw === "string") return BigInt(raw);
   return BigInt((raw as any) ?? 0);
+}
+
+// Decode reward with the correct decimals. Arc faucet rewards are 10–200 USDC (steps of 10).
+function decodeReward(reward: bigint, preferredDecimals?: number): number {
+  const candidates = [preferredDecimals, 6, 18].filter((d): d is number => typeof d === "number");
+  const uniq = Array.from(new Set(candidates));
+
+  const vals = uniq
+    .map((dec) => ({ dec, v: Number(formatUnits(reward, dec)) }))
+    .filter((x) => Number.isFinite(x.v) && x.v > 0);
+
+  const isStep10 = (x: number) => Math.abs(x / 10 - Math.round(x / 10)) < 1e-9;
+  const plausible = vals.find(({ v }) => v >= 10 && v <= 200 && isStep10(v));
+
+  return (plausible ?? vals[0] ?? { v: 0 }).v;
 }
 
 async function readUsdcBalanceRaw(
@@ -80,19 +95,13 @@ async function readUsdcBalanceRaw(
   return { raw, decimals: dec, n: Number(formatUnits(raw, dec)) };
 }
 
+// If Arc uses USDC-style native balance, treat native decimals as 6 to avoid showing 0.
 async function readNativeBalanceRaw(
   publicClient: any,
   owner: `0x${string}`
 ): Promise<{ raw: bigint; decimals: number; n: number }> {
   const raw = (await publicClient.getBalance({ address: owner })) as bigint;
-
-  // Arc uses USDC as native gas token; decimals may be 6 or 18 depending on network config.
-  // Heuristic: choose 6 when the 6-decimal interpretation looks like a realistic user balance delta.
-  const rawAbs = raw < 0n ? -raw : raw;
-  const v18 = Number(formatUnits(rawAbs, 18));
-  const v6 = Number(formatUnits(rawAbs, 6));
-  const decimals = v6 >= 1 && v6 <= 1_000_000 && v18 < 1 ? 6 : 18;
-
+  const decimals = 6;
   const n = Number(formatUnits(raw, decimals));
   return { raw, decimals, n };
 }
@@ -105,8 +114,6 @@ async function readUsdcContractBalance(publicClient: any, owner: `0x${string}`):
     return undefined;
   }
 }
-
-const LAST_CLAIM_READ_CANDIDATES = ["lastClaim", "lastClaimTime", "lastClaimed", "lastRequest", "last"] as const;
 
 function makeReadAbi(name: string) {
   return [
@@ -166,7 +173,7 @@ export function useFaucet(pollMs = 12000) {
       try {
         setState((p) => ({ ...p, loading: true, error: undefined }));
 
-        const faucetUsdc = await readUsdcContractBalance(publicClient, env.FAUCET_CONTRACT);
+        const faucetUsdc = await readUsdcContractBalance(publicClient, env.FAUCET_CONTRACT as `0x${string}`);
 
         let lastClaimTs: number | undefined;
         if (address && isAddress(address)) {
@@ -175,7 +182,7 @@ export function useFaucet(pollMs = 12000) {
           for (const fn of LAST_CLAIM_READ_CANDIDATES) {
             try {
               const raw = await publicClient.readContract({
-                address: env.FAUCET_CONTRACT,
+                address: env.FAUCET_CONTRACT as `0x${string}`,
                 abi: makeReadAbi(fn),
                 functionName: fn,
                 args: [checksum],
@@ -194,20 +201,22 @@ export function useFaucet(pollMs = 12000) {
 
           // Local fallback
           if (!lastClaimTs) {
-            const raw = window.localStorage.getItem(lsKey(checksum));
-            const n = raw ? Number(raw) : undefined;
-            if (n && Number.isFinite(n)) lastClaimTs = n;
+            try {
+              const raw = window.localStorage.getItem(lsKey(checksum));
+              const n = raw ? Number(raw) : undefined;
+              if (n && Number.isFinite(n)) lastClaimTs = n;
+            } catch {}
           }
         }
 
-        // Prefer on-chain "next claim" if the faucet exposes it (e.g., ArcDeck.nextClaimTime).
+        // Prefer on-chain "next claim" if the faucet exposes it.
         let nextClaimTsOnchain: number | undefined;
         if (address && isAddress(address)) {
           const checksum = getAddress(address) as `0x${string}`;
           for (const fn of NEXT_CLAIM_READ_CANDIDATES) {
             try {
               const raw = await publicClient.readContract({
-                address: env.FAUCET_CONTRACT,
+                address: env.FAUCET_CONTRACT as `0x${string}`,
                 abi: makeReadAbi(fn),
                 functionName: fn,
                 args: [checksum],
@@ -276,22 +285,21 @@ export function useFaucet(pollMs = 12000) {
     for (const fn of FAUCET_WRITE_CANDIDATES) {
       try {
         await publicClient.simulateContract({
-          address: env.FAUCET_CONTRACT,
+          address: env.FAUCET_CONTRACT as `0x${string}`,
           abi: makeWriteAbi(fn),
           functionName: fn,
           account: checksum,
         } as any);
 
         const hash = (await writeContractAsync({
-          address: env.FAUCET_CONTRACT,
+          address: env.FAUCET_CONTRACT as `0x${string}`,
           abi: makeWriteAbi(fn),
           functionName: fn,
         } as any)) as `0x${string}`;
 
-        // Wait receipt so we can calculate reward reliably
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-        // Decode Claimed(user,reward,nextTime) if available (preferred over balance deltas).
+        // Decode Claimed(user,reward,nextTime) if available (preferred).
         let rewardFromEvent: number | undefined;
         try {
           for (const log of receipt.logs) {
@@ -310,7 +318,7 @@ export function useFaucet(pollMs = 12000) {
               const reward = decoded?.args?.reward as bigint | undefined;
 
               if (user && getAddress(user) === checksum && typeof reward === "bigint") {
-                rewardFromEvent = Number(formatUnits(reward, 18));
+                rewardFromEvent = decodeReward(reward, before?.decimals);
                 break;
               }
             } catch {
@@ -322,7 +330,9 @@ export function useFaucet(pollMs = 12000) {
         }
 
         // Optimistic local cooldown
-        window.localStorage.setItem(lsKey(checksum), String(nowSeconds()));
+        try {
+          window.localStorage.setItem(lsKey(checksum), String(nowSeconds()));
+        } catch {}
 
         const after = await readUsdcBalanceRaw(publicClient, checksum).catch(() => undefined);
         const afterNative = await readNativeBalanceRaw(publicClient, checksum).catch(() => undefined);
@@ -330,7 +340,6 @@ export function useFaucet(pollMs = 12000) {
         let rewardUsdc: number | undefined;
         let userUsdcAfter: number | undefined;
 
-        // Prefer decoded event reward (exact), fallback to balance deltas.
         if (rewardFromEvent && rewardFromEvent > 0) {
           rewardUsdc = rewardFromEvent;
         }

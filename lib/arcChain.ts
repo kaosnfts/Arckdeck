@@ -7,7 +7,7 @@ export const arcTestnet: Chain = {
   nativeCurrency: {
     name: "USD Coin",
     symbol: "USDC",
-    decimals: 18,
+    decimals: 6,
   },
   rpcUrls: {
     default: { http: [env.ARC_RPC_URL] },
@@ -25,7 +25,7 @@ export const ARC_ADD_NETWORK_PARAMS = {
   nativeCurrency: {
     name: "USD Coin",
     symbol: "USDC",
-    decimals: 18,
+    decimals: 6,
   },
   blockExplorerUrls: [env.ARC_EXPLORER_URL],
 } as const;

@@ -13,6 +13,10 @@ import { env } from "@/lib/env";
 
 const queryClient = new QueryClient();
 
+const appUrl =
+  env.NEXT_PUBLIC_APP_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "https://arcdeck.vercel.app");
+
 const connectors: CreateConnectorFn[] = (() => {
   const list: CreateConnectorFn[] = [injected({ shimDisconnect: true })];
 
@@ -24,7 +28,7 @@ const connectors: CreateConnectorFn[] = (() => {
         metadata: {
           name: "ArcDeck",
           description: "ArcDeck — an elegant Arc Testnet hub",
-          url: typeof window !== "undefined" ? window.location.origin : "https://localhost",
+          url: appUrl,
           icons: ["https://avatars.githubusercontent.com/u/14985020"],
         },
       })
@@ -33,7 +37,6 @@ const connectors: CreateConnectorFn[] = (() => {
 
   return list;
 })();
-
 
 export const wagmiConfig = createConfig({
   chains: [arcTestnet],

@@ -59,13 +59,11 @@ function key(addr: string) {
 function uniqPush(list: string[] | undefined, iso: string) {
   const out = Array.isArray(list) ? [...list] : [];
   if (!out.includes(iso)) out.push(iso);
-  // keep it bounded (last ~140 entries)
   if (out.length > 140) out.splice(0, out.length - 140);
   return out;
 }
 
-// viem/wagmi can infer `unknown` when functionName/abi are dynamic.
-// Normalize the result to bigint safely.
+// viem can infer `unknown` for dynamic ABI + functionName. Normalize safely.
 function toBigInt(raw: unknown): bigint {
   if (typeof raw === "bigint") return raw;
   if (typeof raw === "number") return BigInt(Math.trunc(raw));
@@ -159,7 +157,7 @@ export function useDailyCheckin() {
       if (diff > 1) {
         penaltyDays = diff - 1;
         xp = Math.max(0, xp - penaltyDays * XP_PENALTY_PER_MISSED_DAY);
-        streak = 0; // missed at least one day resets streak
+        streak = 0;
       }
     }
 
@@ -184,6 +182,7 @@ export function useDailyCheckin() {
     try {
       window.localStorage.setItem(key(addr), JSON.stringify(next));
     } catch {}
+
     setState(next);
   }, [address]);
 
@@ -200,7 +199,6 @@ export function useDailyCheckin() {
       setState((p) => ({ ...p, loading: true, error: undefined }));
 
       try {
-        // Read last check-in timestamp (seconds)
         let lastCheckTs: number | undefined;
         for (const fn of LAST_CHECKIN_READ_CANDIDATES) {
           try {
@@ -220,7 +218,6 @@ export function useDailyCheckin() {
           } catch {}
         }
 
-        // Read XP
         let xp: number | undefined;
         for (const fn of XP_READ_CANDIDATES) {
           try {
@@ -240,7 +237,6 @@ export function useDailyCheckin() {
           } catch {}
         }
 
-        // Read streak
         let streak: number | undefined;
         for (const fn of STREAK_READ_CANDIDATES) {
           try {
@@ -262,7 +258,6 @@ export function useDailyCheckin() {
 
         if (cancelled) return;
 
-        // If we could read at least one field, treat as on-chain source.
         if (lastCheckTs || xp !== undefined || streak !== undefined) {
           const lastIso = lastCheckTs ? new Date(lastCheckTs * 1000).toISOString().slice(0, 10) : undefined;
           const today = todayISO();
@@ -272,7 +267,7 @@ export function useDailyCheckin() {
             const xpVal = xp ?? p.xp;
             const level = computeLevel(xpVal);
 
-            return {
+            const next: DailyState = {
               ...p,
               loading: false,
               source: "onchain",
@@ -283,6 +278,12 @@ export function useDailyCheckin() {
               checkedDates: lastIso ? uniqPush(p.checkedDates, lastIso) : p.checkedDates,
               canCheckIn,
             };
+
+            try {
+              window.localStorage.setItem(key(addr), JSON.stringify(next));
+            } catch {}
+
+            return next;
           });
         } else {
           setState((p) => ({ ...p, loading: false }));
@@ -305,32 +306,12 @@ export function useDailyCheckin() {
 
     const today = todayISO();
 
-    // guard using latest state
     if (!state.canCheckIn) throw new Error("You have already checked in today");
 
     setState((p) => ({ ...p, checkingIn: true, error: undefined, lastTxHash: undefined }));
 
-    // If on-chain works, prefer it
     if (publicClient) {
       let lastErr: any;
-
-      const tryReadOnchainXp = async (): Promise<number | undefined> => {
-        for (const fn of XP_READ_CANDIDATES) {
-          try {
-            const raw = await publicClient.readContract({
-              address: env.DAILY_CONTRACT as `0x${string}`,
-              abi: makeReadAbi(fn),
-              functionName: fn,
-              args: [addr],
-            } as any);
-
-            const v = toBigInt(raw);
-            const n = Number(v);
-            if (Number.isFinite(n)) return n;
-          } catch {}
-        }
-        return undefined;
-      };
 
       for (const fn of DAILY_WRITE_CANDIDATES) {
         try {
@@ -347,18 +328,11 @@ export function useDailyCheckin() {
             functionName: fn,
           } as any)) as `0x${string}`;
 
-          // Wait for confirmation (best-effort)
           try {
             await publicClient.waitForTransactionReceipt({ hash });
           } catch {}
 
-          // XP: try read from chain; otherwise optimistic gain
-          let onchainXp: number | undefined;
-          try {
-            onchainXp = await tryReadOnchainXp();
-          } catch {}
-
-          const optimisticGain = randInt(XP_PER_CHECKIN_MIN, XP_PER_CHECKIN_MAX);
+          const gain = randInt(XP_PER_CHECKIN_MIN, XP_PER_CHECKIN_MAX);
 
           setState((p) => {
             const prevLast = p.lastCheckIn;
@@ -371,11 +345,7 @@ export function useDailyCheckin() {
               nextStreak = 1;
             }
 
-            const nextXp =
-              typeof onchainXp === "number" && Number.isFinite(onchainXp)
-                ? onchainXp
-                : Math.max(0, p.xp + optimisticGain);
-
+            const nextXp = Math.max(0, p.xp + gain);
             const next: DailyState = {
               ...p,
               checkingIn: false,
@@ -404,7 +374,6 @@ export function useDailyCheckin() {
         }
       }
 
-      // fall through to local if ABI mismatch / tx errors
       lastErr && console.warn("Daily on-chain write failed, falling back to local", lastErr);
     }
 
@@ -417,8 +386,7 @@ export function useDailyCheckin() {
       let nextStreak = p.streak;
       if (last) {
         const diff = daysDiff(last, today);
-        if (diff === 1) nextStreak += 1;
-        else nextStreak = 1;
+        nextStreak = diff === 1 ? p.streak + 1 : 1;
       } else {
         nextStreak = 1;
       }
@@ -448,6 +416,5 @@ export function useDailyCheckin() {
     return undefined;
   }, [address, state.canCheckIn, publicClient, writeContractAsync]);
 
-  // Keep same return pattern your UI expects: spread state + checkIn
   return { ...state, checkIn };
 }
