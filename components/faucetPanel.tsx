@@ -12,6 +12,19 @@ import { LootboxPng } from "@/components/lootboxPng";
 import { fmtNumber } from "@/lib/format";
 import { env } from "@/lib/env";
 import { useFaucet } from "@/hooks/useFaucet";
+const BAD_FAUCET = "0xd9145cce52d386f254917e481eb44e9943f39138";
+
+function shortAddr(addr?: string) {
+  if (!addr) return "—";
+  if (addr.length < 10) return addr;
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+function explorerAddressUrl(addr?: string) {
+  if (!addr) return undefined;
+  return `${env.ARC_EXPLORER_URL.replace(/\/$/, "")}/address/${addr}`;
+}
+
 
 function formatCountdown(ms?: number) {
   if (ms === undefined) return "–";
@@ -244,6 +257,29 @@ export function FaucetPanel() {
               <div>
                 <div className="text-xl font-semibold tracking-tight text-fg">ArcDeck Lootbox</div>
                 <div className="mt-1 text-sm text-muted">Open to reveal today’s reward (10–200 in steps of 10).</div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span
+                    className={cn(
+                      "rounded-full border px-3 py-1",
+                      env.FAUCET_CONTRACT.toLowerCase() === BAD_FAUCET
+                        ? "border-red-500/30 bg-red-500/15 text-red-200"
+                        : "border-subtle bg-surface text-muted"
+                    )}
+                    title={env.FAUCET_CONTRACT}
+                  >
+                    Faucet contract: {shortAddr(env.FAUCET_CONTRACT)}
+                    {env.FAUCET_CONTRACT.toLowerCase() === BAD_FAUCET ? " ⚠️ WRONG" : ""}
+                  </span>
+
+                  <a
+                    className="inline-flex items-center gap-1 rounded-full border border-subtle bg-surface px-3 py-1 text-muted hover:text-fg"
+                    href={explorerAddressUrl(env.FAUCET_CONTRACT) ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Explorer <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
               </div>
 
               <Button variant="secondary" className="h-11 rounded-2xl px-5" onClick={closeLootbox} disabled={stage === "opening"}>
