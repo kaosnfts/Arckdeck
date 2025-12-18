@@ -6,7 +6,8 @@ import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import type { CreateConnectorFn } from "wagmi";
-import { injected, walletConnect } from "wagmi/connectors";
+import { injected } from "wagmi/connectors/injected";
+import { walletConnect } from "wagmi/connectors/walletConnect";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { arcTestnet } from "@/lib/arcChain";
 import { env } from "@/lib/env";
@@ -14,8 +15,7 @@ import { env } from "@/lib/env";
 const queryClient = new QueryClient();
 
 const appUrl =
-  env.NEXT_PUBLIC_APP_URL ||
-  (typeof window !== "undefined" ? window.location.origin : "https://arcdeck.vercel.app");
+  typeof window !== "undefined" ? window.location.origin : "https://arcdeck.vercel.app";
 
 const connectors: CreateConnectorFn[] = (() => {
   const list: CreateConnectorFn[] = [injected({ shimDisconnect: true })];
