@@ -6,7 +6,7 @@ import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import type { CreateConnectorFn } from "wagmi";
-import { injected } from "wagmi/connectors/injected";
+import { injected, walletConnect } from "@wagmi/connectors";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { arcTestnet } from "@/lib/arcChain";
 import { env } from "@/lib/env";
