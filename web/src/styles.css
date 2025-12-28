@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light dark; }
+* { -webkit-tap-highlight-color: transparent; }
+
+html, body { height: 100%; }
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Nicer selection */
+::selection { background: rgba(99, 102, 241, 0.22); }
+
+@keyframes twCaretBlink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.tw-caret {
+  display: inline-block;
+  margin-left: 0.08em;
+  transform: translateY(-0.06em);
+  opacity: 1;
+  animation: twCaretBlink 1s steps(1, end) infinite;
+}
